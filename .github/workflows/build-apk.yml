@@ -23,26 +23,28 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Gradle 8.5 (自动化环境免安装)
+      - name: Setup Gradle 8.5 (免本地环境配置)
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.5'
 
       - name: Build Debug APK
         run: |
-          # 自动定位项目根目录（兼容直接上传或包含外层文件夹的情况）
-          if [ ! -f "settings.gradle.kts" ] && [ ! -f "settings.gradle" ]; then
-            SUBDIR=$(find . -maxdepth 2 ( -name "settings.gradle.kts" -o -name "settings.gradle" ) | head -n 1 | xargs dirname)
-            if [ -n "$SUBDIR" ] && [ "$SUBDIR" != "." ]; then
-              echo "检测到项目位于子目录: $SUBDIR，进入该目录编译..."
-              cd "$SUBDIR"
+          if [ -f "settings.gradle.kts" ] || [ -f "settings.gradle" ]; then
+            gradle assembleDebug --stacktrace --no-daemon
+          else
+            SETTING_FILE=$(find . -maxdepth 3 -name "settings.gradle*" | head -n 1)
+            if [ -n "$SETTING_FILE" ]; then
+              TARGET_DIR=$(dirname "$SETTING_FILE")
+              echo "Moving to project directory: $TARGET_DIR"
+              cd "$TARGET_DIR"
             fi
+            gradle assembleDebug --stacktrace --no-daemon
           fi
-          gradle assembleDebug --stacktrace --no-daemon
 
       - name: Upload APK to Artifacts (生成安装包下载)
         uses: actions/upload-artifact@v4
         with:
-          name: _______-v1.0.0.apk
+          name: WebDroid-Browser.apk
           path: '**/build/outputs/apk/debug/*.apk'
           if-no-files-found: error
